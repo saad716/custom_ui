@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Widget studio</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+:root{--ink:#17211f;--mut:#5f6e6a;--line:#d9e0dd;--acc:#0e7c6b;--tint:#ddf1ec;--bg:#e6ebe8}
+*{box-sizing:border-box;margin:0}
+body{font:14px/1.4 'Schibsted Grotesk',system-ui,sans-serif;color:var(--ink);background:var(--bg);height:100vh;display:grid;grid-template-rows:auto 1fr}
+header{display:flex;gap:8px;align-items:center;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:15px;font-weight:700;margin-right:6px}
+button,select,input,textarea{font:inherit;color:inherit}
+button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.p{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+#msg{margin-left:auto;color:var(--mut);font-size:12px}
+main{display:grid;grid-template-columns:400px 1fr;min-height:0}
+aside{background:#fff;overflow:auto;border-right:1px solid var(--line);min-height:0}
+details{border-bottom:1px solid var(--line)}
+summary{padding:13px 16px;font-weight:600;cursor:pointer;list-style:none;display:flex;justify-content:space-between}
+summary::after{content:'+';color:var(--mut)}details[open] summary::after{content:'–'}
+.f{padding:0 16px 14px;display:grid;gap:10px}
+label{display:grid;gap:4px;font-size:12px;color:var(--mut)}
+label.b{display:flex;align-items:center;gap:8px;color:var(--ink);font-size:13px}
+input[type=text],input[type=number],select,textarea{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:13px}
+textarea{min-height:64px;resize:vertical}
+.c{display:flex;gap:8px}.c input[type=color]{width:38px;height:34px;padding:2px;border:1px solid var(--line);border-radius:8px;background:#fff;flex:none}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+input[type=checkbox]{accent-color:var(--acc)}
+.stage{display:flex;flex-direction:column;align-items:center;min-height:0;background:radial-gradient(#c3cec9 1px,transparent 1px) 0 0/18px 18px,var(--bg)}
+.bar{display:flex;gap:6px;padding:12px;flex-wrap:wrap;justify-content:center}
+.bar button.on{background:var(--tint);border-color:var(--acc);color:var(--acc);font-weight:600}
+.sp{width:14px}
+iframe{border:0;background:#fff;border-radius:14px;box-shadow:0 10px 40px rgba(23,33,31,.18);margin-bottom:16px;flex:1;min-height:0;width:440px;max-height:720px;transition:width .2s}
+iframe.m{width:390px}
+@media(max-width:900px){body{height:auto}main{grid-template-columns:1fr}.stage{order:-1}iframe{flex:none;height:560px;max-width:96%}}
+@media(prefers-reduced-motion:reduce){iframe{transition:none}}
+</style></head>
+<body>
+<header>
+  <h1>Widget studio</h1>
+  <select id="cl" aria-label="Client" style="width:auto"></select>
+  <button id="new" title="Starts from the current client's settings">New client</button>
+  <button id="del">Delete</button>
+  <span id="msg" role="status"></span>
+  <button id="pull">Pull</button><button id="exp">Export</button><button id="imp">Import</button>
+  <button id="url">Copy widget URL</button><button class="p" id="sv">Save</button>
+  <input type="file" id="file" accept=".json" hidden>
+</header>
+<main>
+  <aside>
+    <div id="form"></div>
+    <details><summary>Studio settings</summary><div class="f">
+      <label>Widget file URL<input type="text" id="s-widget"></label>
+      <label>Config API (n8n webhook)<input type="text" id="s-api"></label>
+      <label>Save key<input type="text" id="s-key"></label>
+    </div></details>
+  </aside>
+  <section class="stage">
+    <div class="bar">
+      <button data-sc="chat">Chat</button><button data-sc="booking">Booking form</button><button data-sc="success">Confirmation</button><button data-st="closed">Launcher</button>
+      <span class="sp"></span><button data-dv="d">Desktop</button><button data-dv="m">Phone</button>
+    </div>
+    <iframe id="pv" title="Live preview"></iframe>
+  </section>
+</main>
+<script>
+const DEF={companyName:'Your Company',agentTag:'Live Support',footerText:'',welcomeMessage:'Hi there! 👋 How can I help you today?',inputPlaceholder:'Type your message…',launcherTitle:'Live Support',launcherSub:"We're online now",showPill:true,showBadge:true,showPoweredBy:true,position:'right',font:'Inter',fontUrl:'',logoUrl:'',webhookUrl:'',source:'widget',currency:'£',corners:'soft',gradient:true,launcherIcon:'sun',launcherIconUrl:'',autoOpenSec:0,pillDelaySec:0.6,onlineLabel:'Online',aiBadge:'AI',youLabel:'You',errorText:'Sorry, there was a connection issue. Please try again.',retryText:'Retry',detailsText:'Details',bookText:'Book Now',poweredText:'Powered by',poweredLabel:'botyama.com',poweredUrl:'https://botyama.com',trustBadges:[],starterOptions:[],pickupPoints:[],bookingTitle:'Book Your Trip',tours:[],colors:{primary:'#2B2E48',secondary:'#494e6c',accent:'#F2994A',accent2:'#F6C453',ink:'#24263A',muted:'#7B7E96',surface:'#FBFAF8',bubble:'#F2EFE6',line:'#ECE8DE'}};
+// [group, open by default, fields[key, type, label, options]]
+const G=[
+['Brand',1,[['logoUrl','text','Logo image URL'],['colors.primary','color','Header and user bubbles'],['colors.secondary','color','Header second color'],['colors.accent','color','Buttons and highlights'],['colors.accent2','color','Accent second color'],['gradient','bool','Blend colors as gradients'],['corners','sel','Corners',['sharp','soft','round']],['font','text','Font (Google Fonts name)'],['fontUrl','text','Custom font CSS URL (optional)']]],
+['Messages',1,[['companyName','text','Company name'],['agentTag','text','Agent title'],['welcomeMessage','area','First message'],['starterOptions','lines','Quick-reply buttons'],['inputPlaceholder','text','Input placeholder'],['trustBadges','lines','Trust bar items'],['footerText','text','Footer text']]],
+['Launcher',0,[['launcherIcon','sel','Icon',['sun','chat','headset','sparkle','custom']],['launcherIconUrl','text','Custom icon URL'],['launcherTitle','text','Pill title'],['launcherSub','text','Pill subtitle'],['showPill','bool','Show pill'],['showBadge','bool','Show unread badge'],['position','sel','Side',['right','left']],['autoOpenSec','num','Auto-open after (seconds, 0 = off)'],['pillDelaySec','num','Pill appears after (seconds)']]],
+['Neutral colors',0,[['colors.surface','color','Chat background'],['colors.bubble','color','Bot bubble and input'],['colors.line','color','Borders'],['colors.ink','color','Main text'],['colors.muted','color','Secondary text']]],
+['Interface text',0,[['onlineLabel','text','Online badge'],['aiBadge','text','AI badge'],['youLabel','text','Your avatar label'],['errorText','area','Error message'],['retryText','text','Retry button'],['detailsText','text','Details button'],['bookText','text','Book button'],['poweredText','text','Powered-by text'],['poweredLabel','text','Powered-by link label'],['poweredUrl','text','Powered-by link URL'],['showPoweredBy','bool','Show powered-by line']]],
+['Connection',0,[['webhookUrl','text','Chat webhook URL']]]
+];
+const $=s=>document.querySelector(s),clone=o=>JSON.parse(JSON.stringify(o));
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const get=(o,k)=>k.split('.').reduce((a,p)=>a&&a[p],o);
+const set=(o,k,v)=>{const p=k.split('.'),l=p.pop();p.reduce((a,x)=>a[x],o)[l]=v};
+const norm=j=>Object.assign(clone(DEF),j,{colors:Object.assign({},DEF.colors,j&&j.colors)});
+let S=Object.assign({clients:{demo:clone(DEF)},cur:'demo',api:'',key:'',widget:'widget.html'},JSON.parse(localStorage.by_studio||'null'));
+const save=()=>localStorage.by_studio=JSON.stringify(S);
+let cfg=S.clients[S.cur]=norm(S.clients[S.cur]),sc='chat',open=true,ready=false;
+const fr=$('#pv');
+
+function note(t){$('#msg').textContent=t;clearTimeout(note.t);note.t=setTimeout(()=>$('#msg').textContent='',4500)}
+function field([k,t,l,o]){
+  const v=get(cfg,k),a=`data-k="${k}" data-t="${t}"`;let i;
+  if(t=='bool')return `<label class="b"><input type="checkbox" ${a}${v?' checked':''}>${l}</label>`;
+  if(t=='color')i=`<div class="c"><input type="color" ${a} value="${esc(v)}"><input type="text" data-k="${k}" data-t="hex" value="${esc(v)}" maxlength="7"></div>`;
+  else if(t=='sel')i=`<select ${a}>${o.map(x=>`<option${x==v?' selected':''}>${x}</option>`).join('')}</select>`;
+  else if(t=='area')i=`<textarea ${a}>${esc(v)}</textarea>`;
+  else if(t=='lines')i=`<textarea ${a} placeholder="One per line">${esc((v||[]).join('\n'))}</textarea>`;
+  else i=`<input type="${t=='num'?'number':'text'}"${t=='num'?' step="any" min="0"':''} ${a} value="${esc(v)}">`;
+  return `<label>${l}${i}</label>`;
+}
+function build(){
+  $('#form').innerHTML=G.map(([t,o,fs])=>`<details${o?' open':''}><summary>${t}</summary><div class="f">${fs.map(field).join('')}</div></details>`).join('');
+}
+const cl=()=>$('#cl').innerHTML=Object.keys(S.clients).map(k=>`<option${k==S.cur?' selected':''}>${esc(k)}</option>`).join('');
+
+/* preview */
+const send=m=>fr.contentWindow&&fr.contentWindow.postMessage(Object.assign({by:'dash'},m),'*');
+const layout=()=>fr.contentWindow.postMessage({by:1,type:'layout',mobile:fr.classList.contains('m')},'*');
+const push=()=>{clearTimeout(push.t);push.t=setTimeout(()=>ready&&send({type:'config',config:cfg}),60)};
+const mark=()=>document.querySelectorAll('.bar button').forEach(b=>b.classList.toggle('on',b.dataset.sc?open&&b.dataset.sc==sc:b.dataset.st?!open:(b.dataset.dv=='m')==fr.classList.contains('m')));
+const load=()=>{ready=false;fr.src=S.widget+'?preview=1'};
+addEventListener('message',e=>{const d=e.data;
+  if(e.source!==fr.contentWindow||!d||d.by!==1||d.type!=='ready')return;
+  ready=true;layout();send({type:'config',config:cfg});send({type:'scenario',name:sc});send({type:'state',open});});
+$('.bar').onclick=e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.sc){sc=b.dataset.sc;open=true;send({type:'scenario',name:sc});send({type:'state',open})}
+  if(b.dataset.st){open=false;send({type:'state',open})}
+  if(b.dataset.dv){fr.classList.toggle('m',b.dataset.dv=='m');layout()}
+  mark()};
+
+/* editing */
+$('#form').addEventListener('input',e=>{
+  const el=e.target,k=el.dataset.k,t=el.dataset.t;if(!k)return;
+  let v=el.type=='checkbox'?el.checked:el.value;
+  if(t=='num')v=parseFloat(v)||0;
+  if(t=='lines')v=v.split('\n').map(x=>x.trim()).filter(Boolean);
+  if(t=='color'||t=='hex'){
+    if(t=='hex'&&!/^#[0-9a-f]{6}$/i.test(v))return;
+    el.closest('.c').querySelectorAll('input').forEach(x=>{if(x!==el)x.value=v});
+  }
+  set(cfg,k,v);S.clients[S.cur]=cfg;save();push();
+});
+
+/* clients */
+$('#cl').onchange=e=>{S.cur=e.target.value;cfg=S.clients[S.cur];save();build();push()};
+$('#new').onclick=()=>{
+  const id=(prompt('Client ID (used as ?bot= in the embed)')||'').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'-');
+  if(!id||S.clients[id])return note(id?'That client already exists':'');
+  S.clients[id]=clone(cfg);S.cur=id;cfg=S.clients[id];save();cl();build();push()};
+$('#del').onclick=()=>{
+  if(Object.keys(S.clients).length<2)return note('Keep at least one client');
+  if(!confirm('Delete '+S.cur+' from this browser?'))return;
+  delete S.clients[S.cur];S.cur=Object.keys(S.clients)[0];cfg=S.clients[S.cur];save();cl();build();push()};
+
+/* save / pull / files */
+$('#sv').onclick=async()=>{
+  S.clients[S.cur]=cfg;save();
+  if(!S.api)return note('Saved in this browser. Add the config API to publish.');
+  try{const r=await fetch(S.api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'save',botId:S.cur,key:S.key,config:cfg})});
+    const d=await r.json().catch(()=>({}));
+    note(r.ok&&d.ok!==false?'Published. Live widgets update on next load.':'The server rejected the save')}
+  catch(e){note('Could not reach the config API')}};
+$('#pull').onclick=async()=>{
+  if(!S.api)return note('Add the config API first');
+  try{const d=await(await fetch(S.api+'?botId='+encodeURIComponent(S.cur))).json();if(!d.ok)throw 0;
+    cfg=S.clients[S.cur]=norm(d.config);save();build();push();note('Pulled from server')}
+  catch(e){note('No config found for '+S.cur)}};
+$('#exp').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(cfg,null,2)],{type:'application/json'}));a.download=S.cur+'.json';a.click()};
+$('#imp').onclick=()=>$('#file').click();
+$('#file').onchange=async e=>{
+  try{cfg=S.clients[S.cur]=norm(JSON.parse(await e.target.files[0].text()));save();build();push();note('Imported')}
+  catch(x){note('That file is not a valid config')}e.target.value=''};
+$('#url').onclick=()=>navigator.clipboard.writeText(new URL(S.widget,location.href).href+'?bot='+encodeURIComponent(S.cur)).then(()=>note('Widget URL copied'));
+
+/* studio settings */
+[['#s-api','api'],['#s-key','key'],['#s-widget','widget']].forEach(([id,k])=>{const el=$(id);el.value=S[k];el.oninput=()=>{S[k]=el.value.trim();save()}});
+$('#s-widget').onchange=load;
+
+cl();build();mark();load();
+</script>
+</body></html>
